@@ -10,6 +10,13 @@ from io import BytesIO
 st.title("Patient Psychological Screening")
 
 # -----------------------
+# البيانات الأساسية للمريض
+# -----------------------
+patient_name = st.text_input("Patient Name")
+age = st.text_input("Age")
+tumor_type = st.text_input("Tumor Type")
+
+# -----------------------
 # الأسئلة
 # -----------------------
 bai_questions = [
@@ -37,67 +44,40 @@ isi_questions = [
     "7. مدى تأثير مشاكل النوم على رفاهيتك العامة"
 ]
 
-# -----------------------
-# درجات كل اختبار
-# -----------------------
 bai_choices = {"0":0, "1":1, "2":2, "3":3}
 phq9_choices = {"0":0, "1":1, "2":2, "3":3}
 isi_choices = {"0":0, "1":1, "2":2, "3":3, "4":4}
 
 # -----------------------
-# مستويات النتائج
-# -----------------------
-def bai_level(score):
-    if score <= 7: return "Minimal Anxiety"
-    elif score <= 15: return "Mild Anxiety"
-    elif score <= 25: return "Moderate Anxiety"
-    else: return "Severe Anxiety"
-
-def phq9_level(score):
-    if score <= 4: return "Minimal Depression"
-    elif score <= 9: return "Mild Depression"
-    elif score <= 14: return "Moderate Depression"
-    else: return "Severe Depression"
-
-def isi_level(score):
-    if score <= 7: return "No clinically significant insomnia"
-    elif score <= 14: return "Subthreshold insomnia"
-    elif score <= 21: return "Moderate insomnia"
-    else: return "Severe insomnia"
-
-# -----------------------
-# بيانات المريض
-# -----------------------
-patient_name = st.text_input("Patient Name")
-age = st.text_input("Age")
-tumor_type = st.text_input("Tumor Type")
-
-st.markdown("---")
-st.subheader("Answer the following questions:")
-
-# -----------------------
-# جمع الإجابات باستخدام st.text_input لكل سؤال
+# تهيئة session_state لتخزين الإجابات
 # -----------------------
 if "bai_answers" not in st.session_state:
-    st.session_state.bai_answers = [""]*len(bai_questions)
+    st.session_state.bai_answers = [""] * len(bai_questions)
 if "phq9_answers" not in st.session_state:
-    st.session_state.phq9_answers = [""]*len(phq9_questions)
+    st.session_state.phq9_answers = [""] * len(phq9_questions)
 if "isi_answers" not in st.session_state:
-    st.session_state.isi_answers = [""]*len(isi_questions)
+    st.session_state.isi_answers = [""] * len(isi_questions)
 
+# -----------------------
+# عرض الأسئلة
+# -----------------------
+st.subheader("BAI Questions")
 for i, q in enumerate(bai_questions):
     st.session_state.bai_answers[i] = st.text_input(q, st.session_state.bai_answers[i], key=f"bai_{i}")
 
+st.subheader("PHQ-9 Questions")
 for i, q in enumerate(phq9_questions):
     st.session_state.phq9_answers[i] = st.text_input(q, st.session_state.phq9_answers[i], key=f"phq9_{i}")
 
+st.subheader("ISI Questions")
 for i, q in enumerate(isi_questions):
     st.session_state.isi_answers[i] = st.text_input(q, st.session_state.isi_answers[i], key=f"isi_{i}")
 
 # -----------------------
-# زر Submit
+# Submit button
 # -----------------------
 if st.button("Submit"):
+    # حساب الدرجات
     try:
         bai_score = sum([bai_choices[a] for a in st.session_state.bai_answers])
         phq9_score = sum([phq9_choices[a] for a in st.session_state.phq9_answers])
@@ -106,7 +86,25 @@ if st.button("Submit"):
         st.error("Please enter valid numbers for all questions.")
         st.stop()
 
-    # مستويات النتائج
+    # تحديد المستويات
+    def bai_level(score):
+        if score <= 7: return "Minimal Anxiety"
+        elif score <= 15: return "Mild Anxiety"
+        elif score <= 25: return "Moderate Anxiety"
+        else: return "Severe Anxiety"
+
+    def phq9_level(score):
+        if score <= 4: return "Minimal Depression"
+        elif score <= 9: return "Mild Depression"
+        elif score <= 14: return "Moderate Depression"
+        else: return "Severe Depression"
+
+    def isi_level(score):
+        if score <= 7: return "No clinically significant insomnia"
+        elif score <= 14: return "Subthreshold insomnia"
+        elif score <= 21: return "Moderate insomnia"
+        else: return "Severe insomnia"
+
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
@@ -119,7 +117,6 @@ if st.button("Submit"):
                          phq9_score, phq9_result,
                          isi_score, isi_result,
                          datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-
     st.success("Results saved successfully!")
 
     # إنشاء PDF
@@ -141,7 +138,6 @@ if st.button("Submit"):
         ["Patient Health Questionnaire-9 (PHQ-9)", phq9_score, phq9_result],
         ["Insomnia Severity Index (ISI)", isi_score, isi_result]
     ]
-
     table = Table(data, hAlign='LEFT', colWidths=[200,100,200])
     table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.lightblue),
