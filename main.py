@@ -7,6 +7,8 @@ from reportlab.lib import colors
 from datetime import datetime
 from io import BytesIO
 
+st.title("Patient Psychological Screening")
+
 # -----------------------
 # الأسئلة
 # -----------------------
@@ -64,11 +66,8 @@ def isi_level(score):
     else: return "Severe insomnia"
 
 # -----------------------
-# Streamlit Interface
-# -----------------------
-st.title("Patient Psychological Screening")
-
 # بيانات المريض
+# -----------------------
 patient_name = st.text_input("Patient Name")
 age = st.text_input("Age")
 tumor_type = st.text_input("Tumor Type")
@@ -77,57 +76,42 @@ st.markdown("---")
 st.subheader("Answer the following questions:")
 
 # -----------------------
-# دالة لعرض الأسئلة وجمع الإجابات
+# جمع الإجابات باستخدام st.text_input لكل سؤال
 # -----------------------
-def ask_questions_streamlit(questions, choices, scale_text):
-    total = 0
-    for q in questions:
-        ans = st.radio(f"{q}", options=list(choices.keys()), format_func=lambda x: f"{x} = {scale_text[x]}")
-        total += choices[ans]
-    return total
+if "bai_answers" not in st.session_state:
+    st.session_state.bai_answers = [""]*len(bai_questions)
+if "phq9_answers" not in st.session_state:
+    st.session_state.phq9_answers = [""]*len(phq9_questions)
+if "isi_answers" not in st.session_state:
+    st.session_state.isi_answers = [""]*len(isi_questions)
 
-# نصوص الخيارات لكل اختبار
-bai_scale_text = {"0":"أبداً", "1":"قليلاً", "2":"نصف الأيام", "3":"تقريبًا كل يوم"}
-phq9_scale_text = {"0":"أبداً", "1":"عدة أيام", "2":"أكثر من نصف الأيام", "3":"تقريبًا كل يوم"}
-isi_scale_text = {"0":"لا أبدًا", "1":"قليل", "2":"متوسط", "3":"كثير", "4":"شديد جدًا"}
+for i, q in enumerate(bai_questions):
+    st.session_state.bai_answers[i] = st.text_input(q, st.session_state.bai_answers[i], key=f"bai_{i}")
+
+for i, q in enumerate(phq9_questions):
+    st.session_state.phq9_answers[i] = st.text_input(q, st.session_state.phq9_answers[i], key=f"phq9_{i}")
+
+for i, q in enumerate(isi_questions):
+    st.session_state.isi_answers[i] = st.text_input(q, st.session_state.isi_answers[i], key=f"isi_{i}")
 
 # -----------------------
-# زر لحساب النتائج
+# زر Submit
 # -----------------------
 if st.button("Submit"):
-    # جمع النتائج
-    bai_score = ask_questions_streamlit(bai_questions, bai_choices, bai_scale_text)
-    phq9_score = ask_questions_streamlit(phq9_questions, phq9_choices, phq9_scale_text)
-    isi_score = ask_questions_streamlit(isi_questions, isi_choices, isi_scale_text)
+    try:
+        bai_score = sum([bai_choices[a] for a in st.session_state.bai_answers])
+        phq9_score = sum([phq9_choices[a] for a in st.session_state.phq9_answers])
+        isi_score = sum([isi_choices[a] for a in st.session_state.isi_answers])
+    except KeyError:
+        st.error("Please enter valid numbers for all questions.")
+        st.stop()
 
     # مستويات النتائج
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
 
-    # الملاحظات لكل اختبار
-    bai_notes_dict = {
-        "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
-        "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
-        "Moderate Anxiety": "Moderate anxiety, follow-up advised.",
-        "Severe Anxiety": "Severe anxiety, urgent consultation recommended."
-    }
-
-    phq9_notes_dict = {
-        "Minimal Depression": "Minimal depressive symptoms, monitor.",
-        "Mild Depression": "Mild depressive symptoms, consider lifestyle changes.",
-        "Moderate Depression": "Moderate depressive symptoms, follow-up suggested.",
-        "Severe Depression": "Severe depressive symptoms, immediate professional evaluation recommended."
-    }
-
-    isi_notes_dict = {
-        "No clinically significant insomnia": "No clinically significant insomnia.",
-        "Subthreshold insomnia": "Mild sleep difficulties, monitor sleep hygiene.",
-        "Moderate insomnia": "Moderate insomnia, consider intervention.",
-        "Severe insomnia": "Severe insomnia, professional evaluation recommended."
-    }
-
-    # حفظ البيانات في CSV
+    # حفظ CSV
     with open("patients_data.csv", mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow([patient_name, age, tumor_type,
@@ -138,7 +122,7 @@ if st.button("Submit"):
 
     st.success("Results saved successfully!")
 
-    # إنشاء PDF في الذاكرة
+    # إنشاء PDF
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
@@ -146,14 +130,11 @@ if st.button("Submit"):
 
     story.append(Paragraph("Patient Report – Psychological Screening", styles["Title"]))
     story.append(Spacer(1,12))
-
-    # بيانات المريض
     story.append(Paragraph(f"Patient Name: {patient_name}", styles["Normal"]))
     story.append(Paragraph(f"Age: {age}", styles["Normal"]))
     story.append(Paragraph(f"Tumor Type: {tumor_type}", styles["Normal"]))
     story.append(Spacer(1,12))
 
-    # جدول النتائج
     data = [
         ["Test Name", "Score", "Level"],
         ["Beck Anxiety Inventory (BAI)", bai_score, bai_result],
@@ -171,19 +152,37 @@ if st.button("Submit"):
     story.append(table)
     story.append(Spacer(1,12))
 
-    # الملاحظات لكل اختبار
+    # ملاحظات لكل اختبار
+    bai_notes_dict = {
+        "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
+        "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
+        "Moderate Anxiety": "Moderate anxiety, follow-up advised.",
+        "Severe Anxiety": "Severe anxiety, urgent consultation recommended."
+    }
+    phq9_notes_dict = {
+        "Minimal Depression": "Minimal depressive symptoms, monitor.",
+        "Mild Depression": "Mild depressive symptoms, consider lifestyle changes.",
+        "Moderate Depression": "Moderate depressive symptoms, follow-up suggested.",
+        "Severe Depression": "Severe depressive symptoms, immediate professional evaluation recommended."
+    }
+    isi_notes_dict = {
+        "No clinically significant insomnia": "No clinically significant insomnia.",
+        "Subthreshold insomnia": "Mild sleep difficulties, monitor sleep hygiene.",
+        "Moderate insomnia": "Moderate insomnia, consider intervention.",
+        "Severe insomnia": "Severe insomnia, professional evaluation recommended."
+    }
+
     story.append(Paragraph("Notes per Test:", styles["Heading2"]))
     story.append(Paragraph(f"- BAI (Anxiety): {bai_notes_dict[bai_result]}", styles["Normal"]))
     story.append(Paragraph(f"- PHQ-9 (Depression): {phq9_notes_dict[phq9_result]}", styles["Normal"]))
     story.append(Paragraph(f"- ISI (Insomnia): {isi_notes_dict[isi_result]}", styles["Normal"]))
     story.append(Spacer(1,12))
 
-    # ملاحظات عامة
-    story.append(Paragraph("General Notes:", styles["Heading2"]))
     general_notes = [
         "This is a preliminary report and does not represent a final medical diagnosis.",
         "Consultation with a mental health professional is advised for a comprehensive assessment."
     ]
+    story.append(Paragraph("General Notes:", styles["Heading2"]))
     for note in general_notes:
         story.append(Paragraph(f"- {note}", styles["Normal"]))
 
@@ -193,7 +192,6 @@ if st.button("Submit"):
     doc.build(story)
     buffer.seek(0)
 
-    # زر تنزيل PDF
     st.download_button(
         label="Download PDF Report",
         data=buffer,
