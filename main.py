@@ -111,7 +111,7 @@ isi_notes_dict = {
 }
 
 # -----------------------
-# إدخال بيانات المريض
+# إدخال بيانات المريض باستخدام Streamlit
 # -----------------------
 patient_name = st.text_input("Patient Name")
 age = st.text_input("Age")
@@ -120,20 +120,30 @@ tumor_type = st.text_input("Tumor Type")
 st.write("### أجب عن الأسئلة بالنسبة للأسبوعين الأخيرين")
 
 # -----------------------
-# عرض كل الأسئلة مرة واحدة
+# دالة لجمع الإجابات
 # -----------------------
-bai_answers = [st.radio(f"{q} (BAI)", list(bai_choices.keys()), key=f"bai_{i}") for i,q in enumerate(bai_questions)]
-phq9_answers = [st.radio(f"{q} (PHQ-9)", list(phq9_choices.keys()), key=f"phq9_{i}") for i,q in enumerate(phq9_questions)]
-isi_answers = [st.radio(f"{q} (ISI)", list(isi_choices.keys()), key=f"isi_{i}") for i,q in enumerate(isi_questions)]
+def ask_questions_streamlit(questions, choices, scale_text, key_prefix):
+    total = 0
+    for i, q in enumerate(questions):
+        st.write(f"{q}")
+        st.write(scale_text)
+        answer = st.radio("اختر الإجابة:", list(choices.keys()), key=f"{key_prefix}_{i}")
+        total += choices[answer]
+    return total
+
+bai_scale_text = "0 = أبداً, 1 = قليلاً, 2 = نصف الأيام, 3 = تقريبًا كل يوم"
+phq9_scale_text = "0 = أبداً, 1 = عدة أيام, 2 = أكثر من نصف الأيام, 3 = تقريبًا كل يوم"
+isi_scale_text = "0 = لا أبدًا, 1 = قليل, 2 = متوسط, 3 = كثير, 4 = شديد جدًا"
 
 # -----------------------
 # زر لحساب النتائج
 # -----------------------
 if st.button("احسب النتائج"):
-    bai_score = sum([bai_choices[a] for a in bai_answers])
-    phq9_score = sum([phq9_choices[a] for a in phq9_answers])
-    isi_score = sum([isi_choices[a] for a in isi_answers])
+    bai_score = ask_questions_streamlit(bai_questions, bai_choices, bai_scale_text, "bai")
+    phq9_score = ask_questions_streamlit(phq9_questions, phq9_choices, phq9_scale_text, "phq9")
+    isi_score = ask_questions_streamlit(isi_questions, isi_choices, isi_scale_text, "isi")
 
+    # تحديد المستويات
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
@@ -143,7 +153,7 @@ if st.button("احسب النتائج"):
     st.write(f"**ISI Score:** {isi_score}, Level: {isi_result}")
 
     # -----------------------
-    # حفظ CSV
+    # حفظ البيانات في CSV
     # -----------------------
     with open("patients_data.csv", mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -156,7 +166,7 @@ if st.button("احسب النتائج"):
     st.success("تم حفظ البيانات في CSV!")
 
     # -----------------------
-    # إنشاء PDF
+    # إنشاء تقرير PDF
     # -----------------------
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -165,6 +175,7 @@ if st.button("احسب النتائج"):
 
     story.append(Paragraph("Patient Report – Psychological Screening", styles["Title"]))
     story.append(Spacer(1,12))
+
     story.append(Paragraph(f"Patient Name: {patient_name}", styles["Normal"]))
     story.append(Paragraph(f"Age: {age}", styles["Normal"]))
     story.append(Paragraph(f"Tumor Type: {tumor_type}", styles["Normal"]))
