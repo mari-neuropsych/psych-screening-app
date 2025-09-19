@@ -92,6 +92,13 @@ def isi_level(score):
     else: return "Severe insomnia"
 
 # -----------------------
+# Scale texts
+# -----------------------
+bai_scale_text = {"0":"أبداً", "1":"قليلاً", "2":"نصف الأيام", "3":"تقريبًا كل يوم"}
+phq9_scale_text = {"0":"أبداً", "1":"عدة أيام", "2":"أكثر من نصف الأيام", "3":"تقريبًا كل يوم"}
+isi_scale_text = {"0":"لا أبدًا", "1":"قليل", "2":"متوسط", "3":"كثير", "4":"شديد جدًا"}
+
+# -----------------------
 # إدخال بيانات المريض
 # -----------------------
 patient_name = st.text_input("Patient Name")
@@ -101,31 +108,39 @@ tumor_type = st.text_input("Tumor Type")
 st.write("### أجب عن الأسئلة بالنسبة للأسبوعين الأخيرين")
 
 # -----------------------
-# دالة لجمع الإجابات مع عرض الخيارات
+# عرض الأسئلة دايمًا
 # -----------------------
-def ask_questions(questions, choices, scale_text):
-    total = 0
-    answers = {}
-    for q in questions:
-        ans = st.radio(f"{q}", options=list(choices.keys()), format_func=lambda x: f"{x} = {scale_text[x]}")
-        total += choices[ans]
-        answers[q] = ans
-    return total, answers
+st.write("#### Beck Anxiety Inventory (BAI)")
+bai_answers = {}
+for q in bai_questions:
+    ans = st.radio(f"{q}", options=list(bai_choices.keys()), format_func=lambda x: f"{x} = {bai_scale_text[x]}", key=q)
+    bai_answers[q] = ans
 
-bai_scale_text = {"0":"أبداً", "1":"قليلاً", "2":"نصف الأيام", "3":"تقريبًا كل يوم"}
-phq9_scale_text = {"0":"أبداً", "1":"عدة أيام", "2":"أكثر من نصف الأيام", "3":"تقريبًا كل يوم"}
-isi_scale_text = {"0":"لا أبدًا", "1":"قليل", "2":"متوسط", "3":"كثير", "4":"شديد جدًا"}
+st.write("#### Patient Health Questionnaire-9 (PHQ-9)")
+phq9_answers = {}
+for q in phq9_questions:
+    ans = st.radio(f"{q}", options=list(phq9_choices.keys()), format_func=lambda x: f"{x} = {phq9_scale_text[x]}", key=q)
+    phq9_answers[q] = ans
 
+st.write("#### Insomnia Severity Index (ISI)")
+isi_answers = {}
+for q in isi_questions:
+    ans = st.radio(f"{q}", options=list(isi_choices.keys()), format_func=lambda x: f"{x} = {isi_scale_text[x]}", key=q)
+    isi_answers[q] = ans
+
+# -----------------------
+# الزر لحساب النتائج
+# -----------------------
 if st.button("Submit"):
-    bai_score, _ = ask_questions(bai_questions, bai_choices, bai_scale_text)
-    phq9_score, _ = ask_questions(phq9_questions, phq9_choices, phq9_scale_text)
-    isi_score, _ = ask_questions(isi_questions, isi_choices, isi_scale_text)
+    bai_score = sum([bai_choices[a] for a in bai_answers.values()])
+    phq9_score = sum([phq9_choices[a] for a in phq9_answers.values()])
+    isi_score = sum([isi_choices[a] for a in isi_answers.values()])
 
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
 
-    # ملاحظات
+    # الملاحظات
     bai_notes_dict = {
         "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
         "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
@@ -146,6 +161,7 @@ if st.button("Submit"):
         "Severe insomnia": "Severe insomnia, professional evaluation recommended."
     }
 
+    # عرض النتائج
     st.write("## Results")
     st.write(f"BAI Score: {bai_score}, Level: {bai_result}")
     st.write(f"PHQ-9 Score: {phq9_score}, Level: {phq9_result}")
@@ -187,31 +203,4 @@ if st.button("Submit"):
 
     table = Table(data, hAlign='LEFT', colWidths=[200,100,200])
     table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0), colors.lightblue),
-        ('TEXTCOLOR',(0,0),(-1,0), colors.white),
-        ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ('GRID',(0,0),(-1,-1),1,colors.black)
-    ]))
-    story.append(table)
-    story.append(Spacer(1,12))
-
-    story.append(Paragraph("Notes per Test:", styles["Heading2"]))
-    story.append(Paragraph(f"- BAI: {bai_notes_dict[bai_result]}", styles["Normal"]))
-    story.append(Paragraph(f"- PHQ-9: {phq9_notes_dict[phq9_result]}", styles["Normal"]))
-    story.append(Paragraph(f"- ISI: {isi_notes_dict[isi_result]}", styles["Normal"]))
-    story.append(Spacer(1,12))
-
-    story.append(Paragraph("General Notes:", styles["Heading2"]))
-    general_notes = [
-        "This is a preliminary report and does not represent a final medical diagnosis.",
-        "Consultation with a mental health professional is advised for a comprehensive assessment."
-    ]
-    for note in general_notes:
-        story.append(Paragraph(f"- {note}", styles["Normal"]))
-
-    story.append(Spacer(1,12))
-    story.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')}", styles["Normal"]))
-
-    doc.build(story)
-
-    st.success(f"Report PDF and CSV generated: {pdf_filename} & patients_data.csv")
+        ('BACKGROUND',(0,0),(-1,
