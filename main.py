@@ -1,5 +1,5 @@
 import streamlit as st
-import csv
+import csv, io
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
@@ -8,9 +8,7 @@ from datetime import datetime
 
 st.title("Psychological Screening App")
 
-# -----------------------
-# الأسئلة مترجمة للعربي
-# -----------------------
+# ---------- أسئلة ----------
 bai_questions = [
     "1. تنميل أو وخز","2. الشعور بالحرارة","3. ارتجاف في الساقين","4. عدم القدرة على الاسترخاء",
     "5. الخوف من حدوث أسوأ الأشياء","6. دوخة أو دوار أو فقدان التوازن","7. خفقان أو زيادة ضربات القلب",
@@ -34,16 +32,11 @@ isi_questions = [
     "7. مدى تأثير مشاكل النوم على رفاهيتك العامة"
 ]
 
-# -----------------------
-# درجات كل اختبار
-# -----------------------
 bai_choices = {"0":0, "1":1, "2":2, "3":3}
 phq9_choices = {"0":0, "1":1, "2":2, "3":3}
 isi_choices = {"0":0, "1":1, "2":2, "3":3, "4":4}
 
-# -----------------------
-# مستويات النتائج
-# -----------------------
+# ---------- مستويات النتائج ----------
 def bai_level(score):
     if score <= 7: return "Minimal Anxiety"
     elif score <= 15: return "Mild Anxiety"
@@ -51,16 +44,11 @@ def bai_level(score):
     else: return "Severe Anxiety"
 
 def phq9_level(score):
-    if score <= 4: 
-        return "Minimal Depression"
-    elif score <= 9: 
-        return "Mild Depression"
-    elif score <= 14: 
-        return "Moderate Depression"
-    elif score <= 19: 
-        return "Moderately Severe Depression"
-    else: 
-        return "Severe Depression"
+    if score <= 4: return "Minimal Depression"
+    elif score <= 9: return "Mild Depression"
+    elif score <= 14: return "Moderate Depression"
+    elif score <= 19: return "Moderately Severe Depression"
+    else: return "Severe Depression"
 
 def isi_level(score):
     if score <= 7: return "No clinically significant insomnia"
@@ -68,46 +56,18 @@ def isi_level(score):
     elif score <= 21: return "Moderate insomnia"
     else: return "Severe insomnia"
 
-# -----------------------
-# Scale texts
-# -----------------------
-bai_scale_text = {"0":"أبداً", "1":"قليلاً", "2":"نصف الأيام", "3":"تقريبًا كل يوم"}
-phq9_scale_text = {"0":"أبداً", "1":"عدة أيام", "2":"أكثر من نصف الأيام", "3":"تقريبًا كل يوم"}
-isi_scale_text = {"0":"لا أبدًا", "1":"قليل", "2":"متوسط", "3":"كثير", "4":"شديد جدًا"}
-
-# -----------------------
-# إدخال بيانات المريض
-# -----------------------
+# ---------- إدخال بيانات ----------
 patient_name = st.text_input("Patient Name")
 age = st.text_input("Age")
 tumor_type = st.text_input("Tumor Type")
 
 st.write("### أجب عن الأسئلة بالنسبة للأسبوعين الأخيرين")
 
-# -----------------------
-# عرض الأسئلة دايمًا
-# -----------------------
-st.write("#### Beck Anxiety Inventory (BAI)")
-bai_answers = {}
-for q in bai_questions:
-    ans = st.radio(f"{q}", options=list(bai_choices.keys()), format_func=lambda x: f"{x} = {bai_scale_text[x]}", key=q)
-    bai_answers[q] = ans
+bai_answers = {q: st.radio(q, options=list(bai_choices.keys()), key=f"bai_{i}") for i, q in enumerate(bai_questions)}
+phq9_answers = {q: st.radio(q, options=list(phq9_choices.keys()), key=f"phq9_{i}") for i, q in enumerate(phq9_questions)}
+isi_answers = {q: st.radio(q, options=list(isi_choices.keys()), key=f"isi_{i}") for i, q in enumerate(isi_questions)}
 
-st.write("#### Patient Health Questionnaire-9 (PHQ-9)")
-phq9_answers = {}
-for q in phq9_questions:
-    ans = st.radio(f"{q}", options=list(phq9_choices.keys()), format_func=lambda x: f"{x} = {phq9_scale_text[x]}", key=q)
-    phq9_answers[q] = ans
-
-st.write("#### Insomnia Severity Index (ISI)")
-isi_answers = {}
-for q in isi_questions:
-    ans = st.radio(f"{q}", options=list(isi_choices.keys()), format_func=lambda x: f"{x} = {isi_scale_text[x]}", key=q)
-    isi_answers[q] = ans
-
-# -----------------------
-# الزر لحساب النتائج
-# -----------------------
+# ---------- عند الضغط على Submit ----------
 if st.button("Submit"):
     bai_score = sum([bai_choices[a] for a in bai_answers.values()])
     phq9_score = sum([phq9_choices[a] for a in phq9_answers.values()])
@@ -117,7 +77,6 @@ if st.button("Submit"):
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
 
-    # الملاحظات
     bai_notes_dict = {
         "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
         "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
@@ -138,18 +97,7 @@ if st.button("Submit"):
         "Severe insomnia": "Severe insomnia, professional evaluation recommended."
     }
 
-    # عرض النتائج
-    st.write("## Results")
-    st.write(f"BAI Score: {bai_score}, Level: {bai_result}")
-    st.write(f"PHQ-9 Score: {phq9_score}, Level: {phq9_result}")
-    st.write(f"ISI Score: {isi_score}, Level: {isi_result}")
-
-    st.write("### Notes")
-    st.write(f"- BAI: {bai_notes_dict[bai_result]}")
-    st.write(f"- PHQ-9: {phq9_notes_dict[phq9_result]}")
-    st.write(f"- ISI: {isi_notes_dict[isi_result]}")
-
-    # حفظ CSV
+    # ---------- حفظ CSV ----------
     with open("patients_data.csv", mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow([patient_name, age, tumor_type,
@@ -158,9 +106,9 @@ if st.button("Submit"):
                          isi_score, isi_result,
                          datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
-    # إنشاء PDF
-    pdf_filename = f"{patient_name}_report.pdf"
-    doc = SimpleDocTemplate(pdf_filename, pagesize=A4)
+    # ---------- إنشاء PDF ----------
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
 
@@ -171,13 +119,13 @@ if st.button("Submit"):
     story.append(Paragraph(f"Tumor Type: {tumor_type}", styles["Normal"]))
     story.append(Spacer(1,12))
 
+    # جدول النتائج
     data = [
         ["Test Name", "Score", "Level"],
         ["Beck Anxiety Inventory (BAI)", bai_score, bai_result],
         ["Patient Health Questionnaire-9 (PHQ-9)", phq9_score, phq9_result],
         ["Insomnia Severity Index (ISI)", isi_score, isi_result]
     ]
-
     table = Table(data, hAlign='LEFT', colWidths=[200,100,200])
     table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.lightblue),
@@ -188,12 +136,14 @@ if st.button("Submit"):
     story.append(table)
     story.append(Spacer(1,12))
 
+    # الملاحظات لكل اختبار
     story.append(Paragraph("Notes per Test:", styles["Heading2"]))
-    story.append(Paragraph(f"- BAI: {bai_notes_dict[bai_result]}", styles["Normal"]))
-    story.append(Paragraph(f"- PHQ-9: {phq9_notes_dict[phq9_result]}", styles["Normal"]))
-    story.append(Paragraph(f"- ISI: {isi_notes_dict[isi_result]}", styles["Normal"]))
+    story.append(Paragraph(f"- BAI (Anxiety): {bai_notes_dict[bai_result]}", styles["Normal"]))
+    story.append(Paragraph(f"- PHQ-9 (Depression): {phq9_notes_dict[phq9_result]}", styles["Normal"]))
+    story.append(Paragraph(f"- ISI (Insomnia): {isi_notes_dict[isi_result]}", styles["Normal"]))
     story.append(Spacer(1,12))
 
+    # الملاحظات العامة
     story.append(Paragraph("General Notes:", styles["Heading2"]))
     general_notes = [
         "This is a preliminary report and does not represent a final medical diagnosis.",
@@ -206,5 +156,26 @@ if st.button("Submit"):
     story.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')}", styles["Normal"]))
 
     doc.build(story)
+    pdf_buffer.seek(0)
 
-    st.success("Results calculated! CSV and PDF saved.")
+    # ---------- زر تحميل PDF ----------
+    st.download_button(
+        label="Download PDF Report",
+        data=pdf_buffer,
+        file_name=f"{patient_name}_report.pdf",
+        mime="application/pdf"
+    )
+
+    # ---------- زر تحميل CSV ----------
+    csv_buffer = io.StringIO()
+    with open("patients_data.csv", 'r', encoding='utf-8') as f:
+        csv_buffer.write(f.read())
+    csv_buffer.seek(0)
+    st.download_button(
+        label="Download CSV",
+        data=csv_buffer,
+        file_name="patients_data.csv",
+        mime="text/csv"
+    )
+
+    st.success("PDF and CSV are ready to download!")
