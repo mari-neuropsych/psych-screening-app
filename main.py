@@ -111,7 +111,7 @@ isi_notes_dict = {
 }
 
 # -----------------------
-# إدخال بيانات المريض باستخدام Streamlit
+# إدخال بيانات المريض
 # -----------------------
 patient_name = st.text_input("Patient Name")
 age = st.text_input("Age")
@@ -131,18 +131,15 @@ def ask_questions_streamlit(questions, choices, scale_text, key_prefix):
         total += choices[answer]
     return total
 
-bai_scale_text = "0 = أبداً, 1 = قليلاً, 2 = نصف الأيام, 3 = تقريبًا كل يوم"
-phq9_scale_text = "0 = أبداً, 1 = عدة أيام, 2 = أكثر من نصف الأيام, 3 = تقريبًا كل يوم"
-isi_scale_text = "0 = لا أبدًا, 1 = قليل, 2 = متوسط, 3 = كثير, 4 = شديد جدًا"
+# عرض الأسئلة على طول
+bai_score = ask_questions_streamlit(bai_questions, bai_choices, "0 = أبداً, 1 = قليلاً, 2 = نصف الأيام, 3 = تقريبًا كل يوم", "bai")
+phq9_score = ask_questions_streamlit(phq9_questions, phq9_choices, "0 = أبداً, 1 = عدة أيام, 2 = أكثر من نصف الأيام, 3 = تقريبًا كل يوم", "phq9")
+isi_score = ask_questions_streamlit(isi_questions, isi_choices, "0 = لا أبدًا, 1 = قليل, 2 = متوسط, 3 = كثير, 4 = شديد جدًا", "isi")
 
 # -----------------------
-# زر لحساب النتائج
+# زر لحساب النتائج (في الآخر بس)
 # -----------------------
 if st.button("احسب النتائج"):
-    bai_score = ask_questions_streamlit(bai_questions, bai_choices, bai_scale_text, "bai")
-    phq9_score = ask_questions_streamlit(phq9_questions, phq9_choices, phq9_scale_text, "phq9")
-    isi_score = ask_questions_streamlit(isi_questions, isi_choices, isi_scale_text, "isi")
-
     # تحديد المستويات
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
@@ -152,9 +149,7 @@ if st.button("احسب النتائج"):
     st.write(f"**PHQ-9 Score:** {phq9_score}, Level: {phq9_result}")
     st.write(f"**ISI Score:** {isi_score}, Level: {isi_result}")
 
-    # -----------------------
-    # حفظ البيانات في CSV
-    # -----------------------
+    # حفظ CSV
     with open("patients_data.csv", mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow([patient_name, age, tumor_type,
@@ -165,9 +160,7 @@ if st.button("احسب النتائج"):
 
     st.success("تم حفظ البيانات في CSV!")
 
-    # -----------------------
-    # إنشاء تقرير PDF
-    # -----------------------
+    # إنشاء PDF
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
