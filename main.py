@@ -1,11 +1,13 @@
+import streamlit as st
 import csv
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from datetime import datetime
-import streamlit as st
-from io import BytesIO
+import io
+
+st.title("Psychological Screening Tool")
 
 # -----------------------
 # الأسئلة مترجمة للعربي
@@ -85,62 +87,64 @@ def isi_level(score):
     else: return "Severe insomnia"
 
 # -----------------------
-# واجهة Streamlit
+# ملاحظات لكل اختبار
 # -----------------------
-st.title("Psychological Screening")
+bai_notes_dict = {
+    "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
+    "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
+    "Moderate Anxiety": "Moderate anxiety, follow-up advised.",
+    "Severe Anxiety": "Severe anxiety, urgent consultation recommended."
+}
 
+phq9_notes_dict = {
+    "Minimal Depression": "Minimal depressive symptoms, monitor.",
+    "Mild Depression": "Mild depressive symptoms, consider lifestyle changes.",
+    "Moderate Depression": "Moderate depressive symptoms, follow-up suggested.",
+    "Severe Depression": "Severe depressive symptoms, immediate professional evaluation recommended."
+}
+
+isi_notes_dict = {
+    "No clinically significant insomnia": "No clinically significant insomnia.",
+    "Subthreshold insomnia": "Mild sleep difficulties, monitor sleep hygiene.",
+    "Moderate insomnia": "Moderate insomnia, consider intervention.",
+    "Severe insomnia": "Severe insomnia, professional evaluation recommended."
+}
+
+# -----------------------
+# إدخال بيانات المريض
+# -----------------------
 patient_name = st.text_input("Patient Name")
 age = st.text_input("Age")
 tumor_type = st.text_input("Tumor Type")
 
-st.write("---")
-st.write("### Answer the questions for the last two weeks:")
+st.write("### أجب عن الأسئلة بالنسبة للأسبوعين الأخيرين")
 
-def ask_questions_st(questions, choices, scale_text):
-    total = 0
-    answers = []
-    for q in questions:
-        ans = st.radio(f"{q}", options=list(choices.keys()), format_func=lambda x: f"{x} = {scale_text[x]}")
-        total += choices[ans]
-        answers.append(ans)
-    return total, answers
+# -----------------------
+# عرض كل الأسئلة مرة واحدة
+# -----------------------
+bai_answers = [st.radio(f"{q} (BAI)", list(bai_choices.keys()), key=f"bai_{i}") for i,q in enumerate(bai_questions)]
+phq9_answers = [st.radio(f"{q} (PHQ-9)", list(phq9_choices.keys()), key=f"phq9_{i}") for i,q in enumerate(phq9_questions)]
+isi_answers = [st.radio(f"{q} (ISI)", list(isi_choices.keys()), key=f"isi_{i}") for i,q in enumerate(isi_questions)]
 
-bai_scale_text = { "0":"أبداً", "1":"قليلاً", "2":"نصف الأيام", "3":"تقريبًا كل يوم" }
-phq9_scale_text = { "0":"أبداً", "1":"عدة أيام", "2":"أكثر من نصف الأيام", "3":"تقريبًا كل يوم" }
-isi_scale_text = { "0":"لا أبدًا", "1":"قليل", "2":"متوسط", "3":"كثير", "4":"شديد جدًا" }
-
-if st.button("Submit"):
-
-    bai_score, _ = ask_questions_st(bai_questions, bai_choices, bai_scale_text)
-    phq9_score, _ = ask_questions_st(phq9_questions, phq9_choices, phq9_scale_text)
-    isi_score, _ = ask_questions_st(isi_questions, isi_choices, isi_scale_text)
+# -----------------------
+# زر لحساب النتائج
+# -----------------------
+if st.button("احسب النتائج"):
+    bai_score = sum([bai_choices[a] for a in bai_answers])
+    phq9_score = sum([phq9_choices[a] for a in phq9_answers])
+    isi_score = sum([isi_choices[a] for a in isi_answers])
 
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
 
-    bai_notes_dict = {
-        "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
-        "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
-        "Moderate Anxiety": "Moderate anxiety, follow-up advised.",
-        "Severe Anxiety": "Severe anxiety, urgent consultation recommended."
-    }
+    st.write(f"**BAI Score:** {bai_score}, Level: {bai_result}")
+    st.write(f"**PHQ-9 Score:** {phq9_score}, Level: {phq9_result}")
+    st.write(f"**ISI Score:** {isi_score}, Level: {isi_result}")
 
-    phq9_notes_dict = {
-        "Minimal Depression": "Minimal depressive symptoms, monitor.",
-        "Mild Depression": "Mild depressive symptoms, consider lifestyle changes.",
-        "Moderate Depression": "Moderate depressive symptoms, follow-up suggested.",
-        "Severe Depression": "Severe depressive symptoms, immediate professional evaluation recommended."
-    }
-
-    isi_notes_dict = {
-        "No clinically significant insomnia": "No clinically significant insomnia.",
-        "Subthreshold insomnia": "Mild sleep difficulties, monitor sleep hygiene.",
-        "Moderate insomnia": "Moderate insomnia, consider intervention.",
-        "Severe insomnia": "Severe insomnia, professional evaluation recommended."
-    }
-
+    # -----------------------
     # حفظ CSV
+    # -----------------------
     with open("patients_data.csv", mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow([patient_name, age, tumor_type,
@@ -149,8 +153,12 @@ if st.button("Submit"):
                          isi_score, isi_result,
                          datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
-    # توليد PDF في ذاكرة مؤقتة
-    buffer = BytesIO()
+    st.success("تم حفظ البيانات في CSV!")
+
+    # -----------------------
+    # إنشاء PDF
+    # -----------------------
+    buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
@@ -168,7 +176,6 @@ if st.button("Submit"):
         ["Patient Health Questionnaire-9 (PHQ-9)", phq9_score, phq9_result],
         ["Insomnia Severity Index (ISI)", isi_score, isi_result]
     ]
-
     table = Table(data, hAlign='LEFT', colWidths=[200,100,200])
     table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0), colors.lightblue),
@@ -197,15 +204,7 @@ if st.button("Submit"):
     story.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')}", styles["Normal"]))
 
     doc.build(story)
-    pdf_data = buffer.getvalue()
-    buffer.close()
+    buffer.seek(0)
 
-    # زر تنزيل PDF
-    st.download_button(
-        label="Download PDF Report",
-        data=pdf_data,
-        file_name=f"{patient_name}_report.pdf",
-        mime="application/pdf"
-    )
-
-    st.success("Data saved and PDF generated successfully!")
+    st.download_button("Download PDF Report", buffer, file_name=f"{patient_name}_report.pdf")
+    st.download_button("Download CSV Data", "patients_data.csv")
