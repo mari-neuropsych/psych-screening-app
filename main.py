@@ -5,6 +5,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from datetime import datetime
+from io import BytesIO
 
 # -----------------------
 # الأسئلة
@@ -80,12 +81,10 @@ st.subheader("Answer the following questions:")
 # -----------------------
 def ask_questions_streamlit(questions, choices, scale_text):
     total = 0
-    answers = []
     for q in questions:
         ans = st.radio(f"{q}", options=list(choices.keys()), format_func=lambda x: f"{x} = {scale_text[x]}")
         total += choices[ans]
-        answers.append(ans)
-    return total, answers
+    return total
 
 # نصوص الخيارات لكل اختبار
 bai_scale_text = {"0":"أبداً", "1":"قليلاً", "2":"نصف الأيام", "3":"تقريبًا كل يوم"}
@@ -96,16 +95,17 @@ isi_scale_text = {"0":"لا أبدًا", "1":"قليل", "2":"متوسط", "3":"
 # زر لحساب النتائج
 # -----------------------
 if st.button("Submit"):
-    bai_score, _ = ask_questions_streamlit(bai_questions, bai_choices, bai_scale_text)
-    phq9_score, _ = ask_questions_streamlit(phq9_questions, phq9_choices, phq9_scale_text)
-    isi_score, _ = ask_questions_streamlit(isi_questions, isi_choices, isi_scale_text)
+    # جمع النتائج
+    bai_score = ask_questions_streamlit(bai_questions, bai_choices, bai_scale_text)
+    phq9_score = ask_questions_streamlit(phq9_questions, phq9_choices, phq9_scale_text)
+    isi_score = ask_questions_streamlit(isi_questions, isi_choices, isi_scale_text)
 
     # مستويات النتائج
     bai_result = bai_level(bai_score)
     phq9_result = phq9_level(phq9_score)
     isi_result = isi_level(isi_score)
 
-    # الملاحظات لكل اختبار حسب النتيجة
+    # الملاحظات لكل اختبار
     bai_notes_dict = {
         "Minimal Anxiety": "Symptoms are minimal, regular monitoring recommended.",
         "Mild Anxiety": "Mild anxiety detected, consider relaxation techniques.",
@@ -138,9 +138,9 @@ if st.button("Submit"):
 
     st.success("Results saved successfully!")
 
-    # إنشاء تقرير PDF
-    pdf_filename = f"{patient_name}_report.pdf"
-    doc = SimpleDocTemplate(pdf_filename, pagesize=A4)
+    # إنشاء PDF في الذاكرة
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
 
@@ -191,5 +191,12 @@ if st.button("Submit"):
     story.append(Paragraph(f"Date: {datetime.now().strftime('%Y-%m-%d')}", styles["Normal"]))
 
     doc.build(story)
+    buffer.seek(0)
 
-    st.success(f"PDF generated: {pdf_filename}")
+    # زر تنزيل PDF
+    st.download_button(
+        label="Download PDF Report",
+        data=buffer,
+        file_name=f"{patient_name}_report.pdf",
+        mime="application/pdf"
+    )
